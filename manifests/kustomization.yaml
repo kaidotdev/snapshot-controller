@@ -16,3 +16,6 @@ images:
 - digest: sha256:bb15283a8791e8c3c29519ae671a96a6149e1aa901b66bceea2e2baa481b5897
   name: ghcr.io/kaidotdev/snapshot-controller
   newName: ghcr.io/kaidotdev/snapshot-controller
+- digest: sha256:86a3364a6cbc1f7f2e1448c9ef91c587ff5ea4bd35a3c5ef87ec9130263dcae5
+  name: ghcr.io/kaidotdev/snapshot-controller/snapshot-controller
+  newName: ghcr.io/kaidotdev/snapshot-controller/snapshot-controller
