@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- crd
+- cluster_role.yaml
+- cluster_role_binding.yaml
+- deployment.yaml
+- pod_disruption_budget.yaml
+- role.yaml
+- role_binding.yaml
+- service.yaml
+- service_account.yaml
+
+images:
+- digest: sha256:bb15283a8791e8c3c29519ae671a96a6149e1aa901b66bceea2e2baa481b5897
+  name: ghcr.io/kaidotdev/snapshot-controller
+  newName: ghcr.io/kaidotdev/snapshot-controller
