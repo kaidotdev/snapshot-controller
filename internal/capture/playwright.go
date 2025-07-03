@@ -19,6 +19,7 @@ type PlaywrightConfig struct {
 	Timeout time.Duration
 	Delay   time.Duration
 
+	Headless                  bool
 	ChromeDevtoolsProtocolURL string
 }
 
@@ -31,6 +32,7 @@ func DefaultPlaywrightConfig() PlaywrightConfig {
 		Quality:        85,
 		Timeout:        30 * time.Second,
 		Delay:          3 * time.Second,
+		Headless:       true,
 	}
 }
 
@@ -55,7 +57,7 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string) (*CaptureR
 
 	if c.config.ChromeDevtoolsProtocolURL == "" {
 		browser, err = p.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-			Headless: playwright.Bool(true),
+			Headless: playwright.Bool(c.config.Headless),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to launch browser: %w", err)
@@ -89,7 +91,7 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string) (*CaptureR
 	defer close(done)
 
 	if _, err := page.Goto(url, playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 		Timeout:   playwright.Float(float64(c.config.Timeout.Milliseconds())),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to navigate to %s: %w", url, err)

@@ -95,6 +95,9 @@ func main() {
 	if chromeDevtoolsProtocolURL != "" {
 		config.ChromeDevtoolsProtocolURL = chromeDevtoolsProtocolURL
 	}
+	if display := os.Getenv("DISPLAY"); display != "" {
+		config.Headless = false
+	}
 
 	capturer, err := capture.NewPlaywrightCapturer(ctx, config)
 	if err != nil {

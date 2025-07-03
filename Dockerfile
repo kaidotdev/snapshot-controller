@@ -25,7 +25,7 @@ FROM golang:1.24-bookworm AS snapshot-capture
 RUN --mount=type=cache,target=/var/cache/apt/archives --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2
+    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2 tini xvfb xauth
 
 RUN echo "nonroot:x:65532:65532::/home/nonroot:/usr/sbin/nologin" >> /etc/passwd
 RUN echo "nonroot:x:65532:" >> /etc/group
@@ -40,7 +40,10 @@ COPY --link --from=builder /usr/local/bin/snapshot-capture /usr/local/bin/snapsh
 
 USER 65532
 
-ENTRYPOINT ["/usr/local/bin/snapshot-capture"]
+ENV XDG_CONFIG_HOME=/tmp/.chromium
+ENV XDG_CACHE_HOME=/tmp/.chromium
+ENV DISPLAY=:0
+ENTRYPOINT ["/usr/bin/tini", "--", "xvfb-run", "/usr/local/bin/snapshot-capture"]
 
 FROM gcr.io/distroless/static:nonroot AS snapshot-diff
 COPY --link --from=builder /usr/local/bin/snapshot-diff /usr/local/bin/snapshot-diff
@@ -54,7 +57,7 @@ FROM golang:1.24-bookworm AS snapshot-worker
 RUN --mount=type=cache,target=/var/cache/apt/archives --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2
+    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2 tini xvfb xauth
 
 RUN echo "nonroot:x:65532:65532::/home/nonroot:/usr/sbin/nologin" >> /etc/passwd
 RUN echo "nonroot:x:65532:" >> /etc/group
@@ -69,14 +72,17 @@ COPY --link --from=builder /usr/local/bin/snapshot-worker /usr/local/bin/snapsho
 
 USER 65532
 
-ENTRYPOINT ["/usr/local/bin/snapshot-worker"]
+ENV XDG_CONFIG_HOME=/tmp/.chromium
+ENV XDG_CACHE_HOME=/tmp/.chromium
+ENV DISPLAY=:0
+ENTRYPOINT ["/usr/bin/tini", "--", "xvfb-run", "/usr/local/bin/snapshot-worker"]
 
 FROM golang:1.24-bookworm
 
 RUN --mount=type=cache,target=/var/cache/apt/archives --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2
+    apt-get install -y --no-install-recommends fonts-noto-cjk libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2 tini xvfb xauth
 
 RUN echo "nonroot:x:65532:65532::/home/nonroot:/usr/sbin/nologin" >> /etc/passwd
 RUN echo "nonroot:x:65532:" >> /etc/group
@@ -91,4 +97,7 @@ COPY --link --from=builder /usr/local/bin/snapshot-controller /usr/local/bin/sna
 
 USER 65532
 
-ENTRYPOINT ["/usr/local/bin/snapshot-controller"]
+ENV XDG_CONFIG_HOME=/tmp/.chromium
+ENV XDG_CACHE_HOME=/tmp/.chromium
+ENV DISPLAY=:0
+ENTRYPOINT ["/usr/bin/tini", "--", "xvfb-run", "/usr/local/bin/snapshot-controller"]
