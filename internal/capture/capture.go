@@ -9,6 +9,10 @@ type CaptureResult struct {
 	HTML       []byte
 }
 
+type CaptureOptions struct {
+	MaskSelectors []string
+}
+
 type Capturer interface {
-	Capture(ctx context.Context, url string) (*CaptureResult, error)
+	Capture(ctx context.Context, url string, captureOptions CaptureOptions) (*CaptureResult, error)
 }

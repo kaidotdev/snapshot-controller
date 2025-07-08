@@ -39,23 +39,37 @@ spec:
           spec:
             description: ScheduledSnapshotSpec defines the desired state of ScheduledSnapshot
             properties:
-              diffFormat:
+              htmlDiffFormat:
+                default: line
+                description: HTMLDiffFormat specifies the format for HTML diff generation
+                  ("line")
+                enum:
+                - line
+                type: string
+              maskSelectors:
+                description: MaskSelectors is a list of CSS selectors to mask during
+                  capture to avoid diff noise
+                items:
+                  type: string
+                type: array
+              schedule:
+                description: Schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                type: string
+              screenshotDiffFormat:
                 default: pixel
-                description: DiffFormat specifies the format for diff generation ("pixel"
-                  or "rectangle")
+                description: ScreenshotDiffFormat specifies the format for diff generation
+                  ("pixel" or "rectangle")
                 enum:
                 - pixel
                 - rectangle
-                type: string
-              schedule:
-                description: Schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
                 type: string
               target:
                 description: Target is the URL to take a screenshot of
                 type: string
             required:
-            - diffFormat
+            - htmlDiffFormat
             - schedule
+            - screenshotDiffFormat
             - target
             type: object
           status:

@@ -73,11 +73,15 @@ func (r *SnapshotReconciler) processSnapshot(ctx context.Context, snapshot *ssV1
 	var baselineResult *capture.CaptureResult
 	var targetResult *capture.CaptureResult
 
+	captureOptions := capture.CaptureOptions{
+		MaskSelectors: snapshot.Spec.MaskSelectors,
+	}
+
 	{
 		eg, ctx := errgroup.WithContext(ctx)
 
 		eg.Go(func() error {
-			result, err := r.Capturer.Capture(ctx, snapshot.Spec.Baseline)
+			result, err := r.Capturer.Capture(ctx, snapshot.Spec.Baseline, captureOptions)
 			if err != nil {
 				return xerrors.Errorf("failed to capture baseline screenshot: %w", err)
 			}
@@ -86,7 +90,7 @@ func (r *SnapshotReconciler) processSnapshot(ctx context.Context, snapshot *ssV1
 		})
 
 		eg.Go(func() error {
-			result, err := r.Capturer.Capture(ctx, snapshot.Spec.Target)
+			result, err := r.Capturer.Capture(ctx, snapshot.Spec.Target, captureOptions)
 			if err != nil {
 				return xerrors.Errorf("failed to capture target screenshot: %w", err)
 			}
@@ -359,6 +363,10 @@ func (r *SnapshotReconciler) createJob(ctx context.Context, snapshot *ssV1.Snaps
 	}
 
 	if err := r.Create(ctx, job); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			r.Log.Info("Job already exists", "job", jobName)
+			return nil
+		}
 		return xerrors.Errorf("failed to create job: %w", err)
 	}
 

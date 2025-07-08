@@ -17,6 +17,7 @@ import (
 	"snapshot-controller/internal/retry"
 	"snapshot-controller/internal/storage"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -84,13 +85,19 @@ func envOrDefaultValue[T any](key string, defaultValue T) T {
 }
 
 func main() {
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 8
+
 	var screenshotFormat string
+	var maskSelectors string
+	var delay time.Duration
 	var chromeDevtoolsProtocolURL string
 	var screenshotDiffFormat string
 	var htmlDiffFormat string
 	var storageBackend string
 	var callbackURL string
 	flag.StringVar(&screenshotFormat, "screenshot-format", envOrDefaultValue("SCREENSHOT_FORMAT", "jpeg"), "Screenshot format (jpeg or png)")
+	flag.StringVar(&maskSelectors, "mask-selectors", envOrDefaultValue("MASK_SELECTORS", ""), "Comma-separated list of CSS selectors to mask during capture")
+	flag.DurationVar(&delay, "delay", envOrDefaultValue("DELAY", 3*time.Second), "Delay before capturing")
 	flag.StringVar(&chromeDevtoolsProtocolURL, "chrome-devtools-protocol-url", envOrDefaultValue("CHROME_DEVTOOLS_PROTOCOL_URL", ""), "Connect to existing browser via Chrome DevTools Protocol URL (e.g., http://localhost:9222)")
 	flag.StringVar(&screenshotDiffFormat, "screenshot-diff-format", envOrDefaultValue("SCREENSHOT_DIFF_FORMAT", "pixel"), "Diff format (pixel or rectangle)")
 	flag.StringVar(&htmlDiffFormat, "html-diff-format", envOrDefaultValue("HTML_DIFF_FORMAT", "line"), "Diff format (line)")
@@ -113,6 +120,9 @@ func main() {
 	if screenshotFormat != "" {
 		config.Format = screenshotFormat
 	}
+	if delay > 0 {
+		config.Delay = delay
+	}
 	if chromeDevtoolsProtocolURL != "" {
 		config.ChromeDevtoolsProtocolURL = chromeDevtoolsProtocolURL
 	}
@@ -123,6 +133,14 @@ func main() {
 	capturer, err := capture.NewPlaywrightCapturer(ctx, config)
 	if err != nil {
 		log.Fatalf("failed to initialize capturer: %v", err)
+	}
+
+	captureOptions := capture.CaptureOptions{}
+	if maskSelectors != "" {
+		captureOptions.MaskSelectors = strings.Split(maskSelectors, ",")
+		for i := range captureOptions.MaskSelectors {
+			captureOptions.MaskSelectors[i] = strings.TrimSpace(captureOptions.MaskSelectors[i])
+		}
 	}
 
 	var s storage.Storage
@@ -150,7 +168,7 @@ func main() {
 		HTMLDiffFormat:       htmlDiffFormat,
 	}
 
-	result, err := worker.processSnapshot(ctx, baseline, target)
+	result, err := worker.processSnapshot(ctx, baseline, target, captureOptions)
 	if err != nil {
 		log.Fatalf("failed to process snapshot: %v", err)
 	}
@@ -169,7 +187,7 @@ func main() {
 	}
 }
 
-func (w *Worker) processSnapshot(ctx context.Context, baseline string, target string) (*WorkerOutput, error) {
+func (w *Worker) processSnapshot(ctx context.Context, baseline string, target string, captureOptions capture.CaptureOptions) (*WorkerOutput, error) {
 	var baselineResult *capture.CaptureResult
 	var targetResult *capture.CaptureResult
 
@@ -178,7 +196,7 @@ func (w *Worker) processSnapshot(ctx context.Context, baseline string, target st
 		eg, ctx := errgroup.WithContext(ctx)
 
 		eg.Go(func() error {
-			result, err := w.Capturer.Capture(ctx, baseline)
+			result, err := w.Capturer.Capture(ctx, baseline, captureOptions)
 			if err != nil {
 				return xerrors.Errorf("failed to capture baseline screenshot: %w", err)
 			}
@@ -187,7 +205,7 @@ func (w *Worker) processSnapshot(ctx context.Context, baseline string, target st
 		})
 
 		eg.Go(func() error {
-			result, err := w.Capturer.Capture(ctx, target)
+			result, err := w.Capturer.Capture(ctx, target, captureOptions)
 			if err != nil {
 				return xerrors.Errorf("failed to capture target screenshot: %w", err)
 			}

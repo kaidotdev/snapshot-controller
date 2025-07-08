@@ -70,7 +70,7 @@ func main() {
 	var directory string
 	var format string
 	flag.StringVar(&directory, "directory", envOrDefaultValue("DIRECTORY", "/tmp"), "Output directory")
-	flag.StringVar(&format, "format", envOrDefaultValue("FORMAT", "pixel"), "Output format (pixel or rectangle or line)")
+	flag.StringVar(&format, "format", envOrDefaultValue("FORMAT", "pixel"), "Output format (pixel, rectangle, line, dom)")
 
 	flag.Parse()
 
@@ -100,12 +100,12 @@ func main() {
 	var diffAmount float64
 	switch format {
 	case "pixel":
-		baselineImage, err := loadScreenshot(baselinePath)
+		baselineImage, err := loadImage(baselinePath)
 		if err != nil {
 			log.Fatalf("Failed to load baseline image: %v", err)
 		}
 
-		targetImage, err := loadScreenshot(targetPath)
+		targetImage, err := loadImage(targetPath)
 		if err != nil {
 			log.Fatalf("Failed to load target image: %v", err)
 		}
@@ -124,12 +124,12 @@ func main() {
 		}
 		diffAmount = diffResult.DiffAmount
 	case "rectangle":
-		baselineImage, err := loadScreenshot(baselinePath)
+		baselineImage, err := loadImage(baselinePath)
 		if err != nil {
 			log.Fatalf("Failed to load baseline image: %v", err)
 		}
 
-		targetImage, err := loadScreenshot(targetPath)
+		targetImage, err := loadImage(targetPath)
 		if err != nil {
 			log.Fatalf("Failed to load target image: %v", err)
 		}
@@ -172,6 +172,31 @@ func main() {
 			log.Fatalf("Failed to save diff image: %v", err)
 		}
 		diffAmount = diffResult.DiffAmount
+	case "dom":
+		baselineHTML, err := os.ReadFile(baselinePath)
+		if err != nil {
+			log.Fatalf("Failed to read baseline HTML file: %v", err)
+		}
+
+		targetHTML, err := os.ReadFile(targetPath)
+		if err != nil {
+			log.Fatalf("Failed to read target HTML file: %v", err)
+		}
+
+		diffResult, err := difftext.NewDOMDiff().Calculate(baselineHTML, targetHTML)
+		if err != nil {
+			log.Fatalf("Failed to calculate DOM diff: %v", err)
+		}
+
+		var buffer bytes.Buffer
+		buffer.Write(diffResult.Diff)
+
+		key := fmt.Sprintf("Snapshot/diff/%s/%s.txt", hash, timestamp)
+		diffPath, err = s.Put(ctx, key, buffer.Bytes())
+		if err != nil {
+			log.Fatalf("Failed to save diff file: %v", err)
+		}
+		diffAmount = diffResult.DiffAmount
 	default:
 		log.Fatalf("Unknown diff type: %s", format)
 	}
@@ -184,17 +209,17 @@ func main() {
 	}
 }
 
-func loadScreenshot(path string) (image.Image, error) {
+func loadImage(path string) (image.Image, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	img, _, err := image.Decode(file)
+	i, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
 	}
 
-	return img, nil
+	return i, nil
 }

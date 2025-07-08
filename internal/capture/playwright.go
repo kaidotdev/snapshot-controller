@@ -46,7 +46,7 @@ func NewPlaywrightCapturer(ctx context.Context, p PlaywrightConfig) (Capturer, e
 	}, nil
 }
 
-func (c *playwrightCapturer) Capture(ctx context.Context, url string) (*CaptureResult, error) {
+func (c *playwrightCapturer) Capture(ctx context.Context, url string, captureOptions CaptureOptions) (*CaptureResult, error) {
 	p, err := playwright.Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start playwright: %w", err)
@@ -102,6 +102,33 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string) (*CaptureR
 		case <-time.After(c.config.Delay):
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		}
+	}
+
+	if len(captureOptions.MaskSelectors) > 0 {
+		script := `(selectors) => {
+			selectors.forEach(selector => {
+				const elements = document.querySelectorAll(selector);
+				elements.forEach(element => {
+					element.style.backgroundColor = '#808080';
+					element.style.color = '#808080';
+					element.style.textShadow = 'none';
+					element.style.opacity = '1';
+					element.style.filter = 'none';
+
+					if (element.tagName === 'IMG' || 
+						element.tagName === 'VIDEO' ||
+						window.getComputedStyle(element).backgroundImage !== 'none'
+					) {
+						element.style.filter = 'grayscale(1) brightness(0.5) opacity(1)';
+						element.style.backgroundColor = '#808080';
+					}
+				});
+			});
+		}`
+
+		if _, err := page.Evaluate(script, captureOptions.MaskSelectors); err != nil {
+			fmt.Printf("failed to mask selectors: %v\n", err)
 		}
 	}
 

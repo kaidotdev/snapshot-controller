@@ -85,7 +85,11 @@ func (r *ScheduledSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Re
 }
 
 func (r *ScheduledSnapshotReconciler) processSnapshot(ctx context.Context, scheduledSnapshot *ssV1.ScheduledSnapshot) error {
-	result, err := r.Capturer.Capture(ctx, scheduledSnapshot.Spec.Target)
+	captureOptions := capture.CaptureOptions{
+		MaskSelectors: scheduledSnapshot.Spec.MaskSelectors,
+	}
+
+	result, err := r.Capturer.Capture(ctx, scheduledSnapshot.Spec.Target, captureOptions)
 	if err != nil {
 		return xerrors.Errorf("failed to download screenshot: %w", err)
 	}

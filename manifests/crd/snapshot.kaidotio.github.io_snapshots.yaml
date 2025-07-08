@@ -42,10 +42,23 @@ spec:
               baseline:
                 description: Baseline is the URL to compare against
                 type: string
-              diffFormat:
+              htmlDiffFormat:
+                default: line
+                description: HTMLDiffFormat specifies the format for HTML diff generation
+                  ("line")
+                enum:
+                - line
+                type: string
+              maskSelectors:
+                description: MaskSelectors is a list of CSS selectors to mask during
+                  capture to avoid diff noise
+                items:
+                  type: string
+                type: array
+              screenshotDiffFormat:
                 default: pixel
-                description: DiffFormat specifies the format for diff generation ("pixel"
-                  or "rectangle")
+                description: ScreenshotDiffFormat specifies the format for diff generation
+                  ("pixel" or "rectangle")
                 enum:
                 - pixel
                 - rectangle
@@ -55,7 +68,8 @@ spec:
                 type: string
             required:
             - baseline
-            - diffFormat
+            - htmlDiffFormat
+            - screenshotDiffFormat
             - target
             type: object
           status:

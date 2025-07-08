@@ -20,6 +20,9 @@ type ScheduledSnapshotSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default="line"
 	HTMLDiffFormat string `json:"htmlDiffFormat"`
+	// MaskSelectors is a list of CSS selectors to mask during capture to avoid diff noise
+	// +optional
+	MaskSelectors []string `json:"maskSelectors,omitempty"`
 }
 
 // ScheduledSnapshotStatus defines the observed state of ScheduledSnapshot
