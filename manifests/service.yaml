@@ -7,7 +7,7 @@ spec:
     app.kubernetes.io/name: snapshot-controller
     app.kubernetes.io/component: ""
   ports:
-    - name: https
+    - name: http
       port: 8082
       protocol: TCP
       targetPort: server

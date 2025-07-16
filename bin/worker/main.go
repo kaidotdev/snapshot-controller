@@ -35,6 +35,17 @@ type WorkerOutput struct {
 	HTMLDiffAmount       float64 `json:"htmlDiffAmount"`
 }
 
+type headers []string
+
+func (h *headers) String() string {
+	return strings.Join(*h, ", ")
+}
+
+func (h *headers) Set(value string) error {
+	*h = append(*h, value)
+	return nil
+}
+
 type Worker struct {
 	Capturer             capture.Capturer
 	Storage              storage.Storage
@@ -95,6 +106,7 @@ func main() {
 	var htmlDiffFormat string
 	var storageBackend string
 	var callbackURL string
+	var headers headers
 	flag.StringVar(&screenshotFormat, "screenshot-format", envOrDefaultValue("SCREENSHOT_FORMAT", "jpeg"), "Screenshot format (jpeg or png)")
 	flag.StringVar(&maskSelectors, "mask-selectors", envOrDefaultValue("MASK_SELECTORS", ""), "Comma-separated list of CSS selectors to mask during capture")
 	flag.DurationVar(&delay, "delay", envOrDefaultValue("DELAY", 3*time.Second), "Delay before capturing")
@@ -103,6 +115,7 @@ func main() {
 	flag.StringVar(&htmlDiffFormat, "html-diff-format", envOrDefaultValue("HTML_DIFF_FORMAT", "line"), "Diff format (line)")
 	flag.StringVar(&storageBackend, "storage-backend", envOrDefaultValue("STORAGE_BACKEND", "file"), "Storage backend (file or s3)")
 	flag.StringVar(&callbackURL, "callback-url", envOrDefaultValue("CALLBACK_URL", ""), "Callback URL to send results to")
+	flag.Var(&headers, "H", "Add HTTP header (can be used multiple times, e.g., -H 'Accept: text/html' -H 'Authorization: Bearer token')")
 
 	flag.Parse()
 
@@ -140,6 +153,17 @@ func main() {
 		captureOptions.MaskSelectors = strings.Split(maskSelectors, ",")
 		for i := range captureOptions.MaskSelectors {
 			captureOptions.MaskSelectors[i] = strings.TrimSpace(captureOptions.MaskSelectors[i])
+		}
+	}
+	if len(headers) > 0 {
+		captureOptions.Headers = make(map[string]string)
+		for _, header := range headers {
+			parts := strings.SplitN(header, ":", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				captureOptions.Headers[key] = value
+			}
 		}
 	}
 

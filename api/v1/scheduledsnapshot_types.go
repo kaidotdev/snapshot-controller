@@ -23,6 +23,9 @@ type ScheduledSnapshotSpec struct {
 	// MaskSelectors is a list of CSS selectors to mask during capture to avoid diff noise
 	// +optional
 	MaskSelectors []string `json:"maskSelectors,omitempty"`
+	// Headers are optional HTTP headers to use when capturing the target URL
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 // ScheduledSnapshotStatus defines the observed state of ScheduledSnapshot

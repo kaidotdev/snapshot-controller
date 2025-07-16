@@ -10,6 +10,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/grafana/otel-profiling-go v0.5.1
 	github.com/grafana/pyroscope-go v1.2.2
+	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.5200.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/robfig/cron/v3 v3.0.1

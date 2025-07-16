@@ -22,6 +22,17 @@ type SnapshotResult struct {
 	HTMLPath       string `json:"htmlPath"`
 }
 
+type headers []string
+
+func (h *headers) String() string {
+	return strings.Join(*h, ", ")
+}
+
+func (h *headers) Set(value string) error {
+	*h = append(*h, value)
+	return nil
+}
+
 func envOrDefaultValue[T any](key string, defaultValue T) T {
 	value, exists := os.LookupEnv(key)
 	if !exists {
@@ -70,11 +81,13 @@ func main() {
 	var maskSelectors string
 	var delay time.Duration
 	var chromeDevtoolsProtocolURL string
+	var headers headers
 	flag.StringVar(&directory, "directory", envOrDefaultValue("DIRECTORY", "/tmp"), "Output directory")
 	flag.StringVar(&format, "format", envOrDefaultValue("FORMAT", "jpeg"), "Output format (jpeg or png)")
 	flag.StringVar(&maskSelectors, "mask-selectors", envOrDefaultValue("MASK_SELECTORS", ""), "Comma-separated list of CSS selectors to mask during capture")
 	flag.DurationVar(&delay, "delay", envOrDefaultValue("DELAY", 3*time.Second), "Delay before capturing")
 	flag.StringVar(&chromeDevtoolsProtocolURL, "chrome-devtools-protocol-url", envOrDefaultValue("CHROME_DEVTOOLS_PROTOCOL_URL", ""), "Connect to existing browser via Chrome DevTools Protocol URL (e.g., http://localhost:9222)")
+	flag.Var(&headers, "H", "Add HTTP header (can be used multiple times, e.g., -H 'Accept: text/html' -H 'Authorization: Bearer token')")
 
 	flag.Parse()
 
@@ -117,6 +130,17 @@ func main() {
 		captureOptions.MaskSelectors = strings.Split(maskSelectors, ",")
 		for i := range captureOptions.MaskSelectors {
 			captureOptions.MaskSelectors[i] = strings.TrimSpace(captureOptions.MaskSelectors[i])
+		}
+	}
+	if len(headers) > 0 {
+		captureOptions.Headers = make(map[string]string)
+		for _, header := range headers {
+			parts := strings.SplitN(header, ":", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				captureOptions.Headers[key] = value
+			}
 		}
 	}
 

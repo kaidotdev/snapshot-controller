@@ -23,6 +23,9 @@ type SnapshotSpec struct {
 	// MaskSelectors is a list of CSS selectors to mask during capture to avoid diff noise
 	// +optional
 	MaskSelectors []string `json:"maskSelectors,omitempty"`
+	// Headers are optional HTTP headers to use when capturing both baseline and target URLs
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
@@ -49,6 +52,9 @@ type SnapshotStatus struct {
 	HTMLDiffAmount float64 `json:"htmlDiffAmount,omitempty"`
 	// LastSnapshotTime is the time when the last snapshot was taken
 	LastSnapshotTime *metaV1.Time `json:"lastSnapshotTime,omitempty"`
+	// ObservedGeneration represents the .metadata.generation that the status was updated for
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

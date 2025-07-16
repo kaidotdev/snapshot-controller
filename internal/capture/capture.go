@@ -11,6 +11,7 @@ type CaptureResult struct {
 
 type CaptureOptions struct {
 	MaskSelectors []string
+	Headers       map[string]string
 }
 
 type Capturer interface {

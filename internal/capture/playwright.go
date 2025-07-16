@@ -2,6 +2,8 @@ package capture
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -90,6 +92,12 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string, captureOpt
 	}()
 	defer close(done)
 
+	if len(captureOptions.Headers) > 0 {
+		if err := page.SetExtraHTTPHeaders(captureOptions.Headers); err != nil {
+			return nil, fmt.Errorf("failed to set HTTP headers: %w", err)
+		}
+	}
+
 	if _, err := page.Goto(url, playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 		Timeout:   playwright.Float(float64(c.config.Timeout.Milliseconds())),
@@ -106,29 +114,48 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string, captureOpt
 	}
 
 	if len(captureOptions.MaskSelectors) > 0 {
-		script := `(selectors) => {
+		unique := make([]byte, 8)
+		if _, err := rand.Read(unique); err != nil {
+			return nil, fmt.Errorf("failed to generate unique identifier: %w", err)
+		}
+		maskClassName := fmt.Sprintf("mask-%s", hex.EncodeToString(unique))
+
+		maskCSS := fmt.Sprintf(`
+.%s {
+  position: relative !important;
+}
+.%s::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: black !important;
+  z-index: 2147483646 !important;
+  pointer-events: none !important;
+}
+`, maskClassName, maskClassName)
+
+		script := fmt.Sprintf(`(selectors) => {
+			const style = document.createElement('style');
+			style.textContent = %q;
+			document.head.appendChild(style);
+
 			selectors.forEach(selector => {
 				const elements = document.querySelectorAll(selector);
 				elements.forEach(element => {
-					element.style.backgroundColor = '#808080';
-					element.style.color = '#808080';
-					element.style.textShadow = 'none';
-					element.style.opacity = '1';
-					element.style.filter = 'none';
-
-					if (element.tagName === 'IMG' || 
-						element.tagName === 'VIDEO' ||
-						window.getComputedStyle(element).backgroundImage !== 'none'
-					) {
-						element.style.filter = 'grayscale(1) brightness(0.5) opacity(1)';
-						element.style.backgroundColor = '#808080';
+					const computedStyle = window.getComputedStyle(element);
+					if (computedStyle.position === 'static') {
+						element.style.position = 'relative';
 					}
+					element.classList.add(%q);
 				});
 			});
-		}`
+		}`, maskCSS, maskClassName)
 
 		if _, err := page.Evaluate(script, captureOptions.MaskSelectors); err != nil {
-			fmt.Printf("failed to mask selectors: %v\n", err)
+			return nil, fmt.Errorf("failed to mask selectors: %w", err)
 		}
 	}
 

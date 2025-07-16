@@ -12,6 +12,7 @@ import (
 	diffimage "snapshot-controller/internal/diff/image"
 	difftext "snapshot-controller/internal/diff/text"
 	"snapshot-controller/internal/storage"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -87,6 +88,7 @@ func (r *ScheduledSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Re
 func (r *ScheduledSnapshotReconciler) processSnapshot(ctx context.Context, scheduledSnapshot *ssV1.ScheduledSnapshot) error {
 	captureOptions := capture.CaptureOptions{
 		MaskSelectors: scheduledSnapshot.Spec.MaskSelectors,
+		Headers:       scheduledSnapshot.Spec.Headers,
 	}
 
 	result, err := r.Capturer.Capture(ctx, scheduledSnapshot.Spec.Target, captureOptions)
@@ -281,6 +283,53 @@ func (r *ScheduledSnapshotReconciler) updateScheduledSnapshotStatus(ctx context.
 func (r *ScheduledSnapshotReconciler) createOrUpdateCronJob(ctx context.Context, scheduledSnapshot *ssV1.ScheduledSnapshot) error {
 	cronJobName := fmt.Sprintf("snapshot-%s", scheduledSnapshot.Name)
 
+	args := []string{
+		scheduledSnapshot.Spec.Target,
+		scheduledSnapshot.Spec.Target,
+		"--screenshot-diff-format", scheduledSnapshot.Spec.ScreenshotDiffFormat,
+		"--html-diff-format", scheduledSnapshot.Spec.HTMLDiffFormat,
+		"--callback-url", fmt.Sprintf("http://%s/api/%s/%s/%s/%s/%s/artifacts", r.DistributedCallbackHost, scheduledSnapshot.Namespace, ssV1.GroupVersion.Group, ssV1.GroupVersion.Version, "scheduledsnapshot", scheduledSnapshot.Name),
+	}
+
+	if len(scheduledSnapshot.Spec.MaskSelectors) > 0 {
+		args = append(args, "--mask-selectors", strings.Join(scheduledSnapshot.Spec.MaskSelectors, ","))
+	}
+
+	for key, value := range scheduledSnapshot.Spec.Headers {
+		args = append(args, "-H", fmt.Sprintf("%s: %s", key, value))
+	}
+
+	envVars := []coreV1.EnvVar{
+		{
+			Name:  "STORAGE_BACKEND",
+			Value: "s3",
+		},
+		{
+			Name:  "S3_BUCKET",
+			Value: os.Getenv("S3_BUCKET"),
+		},
+		{
+			Name:  "S3_ENDPOINT",
+			Value: os.Getenv("S3_ENDPOINT"),
+		},
+		{
+			Name:  "S3_REGION",
+			Value: os.Getenv("S3_REGION"),
+		},
+		{
+			Name:  "AWS_ACCESS_KEY_ID",
+			Value: os.Getenv("AWS_ACCESS_KEY_ID"),
+		},
+		{
+			Name:  "AWS_SECRET_ACCESS_KEY",
+			Value: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		},
+		{
+			Name:  "CHROME_DEVTOOLS_PROTOCOL_URL",
+			Value: os.Getenv("CHROME_DEVTOOLS_PROTOCOL_URL"),
+		},
+	}
+
 	cronJob := &batchV1.CronJob{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      cronJobName,
@@ -297,43 +346,8 @@ func (r *ScheduledSnapshotReconciler) createOrUpdateCronJob(ctx context.Context,
 								{
 									Name:  "worker",
 									Image: r.DistributedWorkerImage,
-									Args: []string{
-										scheduledSnapshot.Spec.Target,
-										scheduledSnapshot.Spec.Target,
-										"--screenshot-diff-format", scheduledSnapshot.Spec.ScreenshotDiffFormat,
-										"--html-diff-format", scheduledSnapshot.Spec.HTMLDiffFormat,
-										"--callback-url", fmt.Sprintf("http://%s/api/%s/%s/%s/%s/%s/artifacts", r.DistributedCallbackHost, scheduledSnapshot.Namespace, ssV1.GroupVersion.Group, ssV1.GroupVersion.Version, "scheduledsnapshot", scheduledSnapshot.Name),
-									},
-									Env: []coreV1.EnvVar{
-										{
-											Name:  "STORAGE_BACKEND",
-											Value: "s3",
-										},
-										{
-											Name:  "S3_BUCKET",
-											Value: os.Getenv("S3_BUCKET"),
-										},
-										{
-											Name:  "S3_ENDPOINT",
-											Value: os.Getenv("S3_ENDPOINT"),
-										},
-										{
-											Name:  "S3_REGION",
-											Value: os.Getenv("S3_REGION"),
-										},
-										{
-											Name:  "AWS_ACCESS_KEY_ID",
-											Value: os.Getenv("AWS_ACCESS_KEY_ID"),
-										},
-										{
-											Name:  "AWS_SECRET_ACCESS_KEY",
-											Value: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-										},
-										{
-											Name:  "CHROME_DEVTOOLS_PROTOCOL_URL",
-											Value: os.Getenv("CHROME_DEVTOOLS_PROTOCOL_URL"),
-										},
-									},
+									Args:  args,
+									Env:   envVars,
 								},
 							},
 						},

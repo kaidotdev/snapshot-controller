@@ -28,6 +28,7 @@ import (
 	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"github.com/grafana/pyroscope-go"
 	pyroscopepprof "github.com/grafana/pyroscope-go/http/pprof"
+	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
@@ -52,7 +53,7 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		address:                envOrDefaultValue("ADDRESS", "0.0.0.0:8383"),
+		address:                envOrDefaultValue("ADDRESS", "0.0.0.0:8080"),
 		terminationGracePeriod: envOrDefaultValue("TERMINATION_GRACE_PERIOD", 10*time.Second),
 		lameduck:               envOrDefaultValue("LAMEDUCK", 1*time.Second),
 		keepAlive:              envOrDefaultValue("HTTP_KEEPALIVE", true),
@@ -105,6 +106,10 @@ func envOrDefaultValue[T any](key string, defaultValue T) T {
 var Debug = false
 
 func (s *Server) Start(ctx context.Context) error {
+	if Debug {
+		_ = godotenv.Load()
+	}
+
 	runtime.SetMutexProfileFraction(1)
 	runtime.SetBlockProfileRate(1)
 

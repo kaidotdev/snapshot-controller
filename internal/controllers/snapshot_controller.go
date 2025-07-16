@@ -12,6 +12,7 @@ import (
 	diffimage "snapshot-controller/internal/diff/image"
 	difftext "snapshot-controller/internal/diff/text"
 	"snapshot-controller/internal/storage"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -52,8 +53,13 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	if snapshot.Status.LastSnapshotTime != nil {
+	if snapshot.Status.ObservedGeneration >= snapshot.Generation {
 		return ctrl.Result{}, nil
+	}
+
+	snapshot.Status.ObservedGeneration = snapshot.Generation
+	if err := r.Status().Update(ctx, snapshot); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if r.Distributed {
@@ -75,6 +81,7 @@ func (r *SnapshotReconciler) processSnapshot(ctx context.Context, snapshot *ssV1
 
 	captureOptions := capture.CaptureOptions{
 		MaskSelectors: snapshot.Spec.MaskSelectors,
+		Headers:       snapshot.Spec.Headers,
 	}
 
 	{
@@ -301,6 +308,53 @@ func (r *SnapshotReconciler) generateHTMLDiff(baselineHTML []byte, targetHTML []
 func (r *SnapshotReconciler) createJob(ctx context.Context, snapshot *ssV1.Snapshot) error {
 	jobName := fmt.Sprintf("snapshot-%s-%d", snapshot.Name, time.Now().Unix())
 
+	args := []string{
+		snapshot.Spec.Baseline,
+		snapshot.Spec.Target,
+		"--screenshot-diff-format", snapshot.Spec.ScreenshotDiffFormat,
+		"--html-diff-format", snapshot.Spec.HTMLDiffFormat,
+		"--callback", fmt.Sprintf("http://%s/api/%s/%s/%s/%s/%s/artifacts", r.DistributedCallbackHost, snapshot.Namespace, ssV1.GroupVersion.Group, ssV1.GroupVersion.Version, "snapshot", snapshot.Name),
+	}
+
+	if len(snapshot.Spec.MaskSelectors) > 0 {
+		args = append(args, "--mask-selectors", strings.Join(snapshot.Spec.MaskSelectors, ","))
+	}
+
+	for key, value := range snapshot.Spec.Headers {
+		args = append(args, "-H", fmt.Sprintf("%s: %s", key, value))
+	}
+
+	envVars := []coreV1.EnvVar{
+		{
+			Name:  "STORAGE_BACKEND",
+			Value: "s3",
+		},
+		{
+			Name:  "S3_BUCKET",
+			Value: os.Getenv("S3_BUCKET"),
+		},
+		{
+			Name:  "S3_ENDPOINT",
+			Value: os.Getenv("S3_ENDPOINT"),
+		},
+		{
+			Name:  "S3_REGION",
+			Value: os.Getenv("S3_REGION"),
+		},
+		{
+			Name:  "AWS_ACCESS_KEY_ID",
+			Value: os.Getenv("AWS_ACCESS_KEY_ID"),
+		},
+		{
+			Name:  "AWS_SECRET_ACCESS_KEY",
+			Value: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		},
+		{
+			Name:  "CHROME_DEVTOOLS_PROTOCOL_URL",
+			Value: os.Getenv("CHROME_DEVTOOLS_PROTOCOL_URL"),
+		},
+	}
+
 	job := &batchV1.Job{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      jobName,
@@ -314,43 +368,8 @@ func (r *SnapshotReconciler) createJob(ctx context.Context, snapshot *ssV1.Snaps
 						{
 							Name:  "worker",
 							Image: r.DistributedWorkerImage,
-							Args: []string{
-								snapshot.Spec.Baseline,
-								snapshot.Spec.Target,
-								"--screenshot-diff-format", snapshot.Spec.ScreenshotDiffFormat,
-								"--html-diff-format", snapshot.Spec.HTMLDiffFormat,
-								"--callback", fmt.Sprintf("http://%s/api/%s/%s/%s/%s/%s/artifacts", r.DistributedCallbackHost, snapshot.Namespace, ssV1.GroupVersion.Group, ssV1.GroupVersion.Version, "snapshot", snapshot.Name),
-							},
-							Env: []coreV1.EnvVar{
-								{
-									Name:  "STORAGE_BACKEND",
-									Value: "s3",
-								},
-								{
-									Name:  "S3_BUCKET",
-									Value: os.Getenv("S3_BUCKET"),
-								},
-								{
-									Name:  "S3_ENDPOINT",
-									Value: os.Getenv("S3_ENDPOINT"),
-								},
-								{
-									Name:  "S3_REGION",
-									Value: os.Getenv("S3_REGION"),
-								},
-								{
-									Name:  "AWS_ACCESS_KEY_ID",
-									Value: os.Getenv("AWS_ACCESS_KEY_ID"),
-								},
-								{
-									Name:  "AWS_SECRET_ACCESS_KEY",
-									Value: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-								},
-								{
-									Name:  "CHROME_DEVTOOLS_PROTOCOL_URL",
-									Value: os.Getenv("CHROME_DEVTOOLS_PROTOCOL_URL"),
-								},
-							},
+							Args:  args,
+							Env:   envVars,
 						},
 					},
 				},

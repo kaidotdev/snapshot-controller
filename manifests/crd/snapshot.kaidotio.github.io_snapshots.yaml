@@ -98,6 +98,11 @@ spec:
                   taken
                 format: date-time
                 type: string
+              observedGeneration:
+                description: ObservedGeneration represents the .metadata.generation
+                  that the status was updated for
+                format: int64
+                type: integer
               screenshotDiffAmount:
                 description: ScreenshotDiffAmount is the percentage of screenshot
                   difference (0.0 to 1.0)
