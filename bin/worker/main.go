@@ -101,6 +101,8 @@ func main() {
 	var screenshotFormat string
 	var maskSelectors string
 	var delay time.Duration
+	var viewportWidth int
+	var viewportHeight int
 	var chromeDevtoolsProtocolURL string
 	var screenshotDiffFormat string
 	var htmlDiffFormat string
@@ -110,6 +112,8 @@ func main() {
 	flag.StringVar(&screenshotFormat, "screenshot-format", envOrDefaultValue("SCREENSHOT_FORMAT", "jpeg"), "Screenshot format (jpeg or png)")
 	flag.StringVar(&maskSelectors, "mask-selectors", envOrDefaultValue("MASK_SELECTORS", ""), "Comma-separated list of CSS selectors to mask during capture")
 	flag.DurationVar(&delay, "delay", envOrDefaultValue("DELAY", 3*time.Second), "Delay before capturing")
+	flag.IntVar(&viewportWidth, "viewport-width", envOrDefaultValue("VIEWPORT_WIDTH", 1920), "Viewport width in pixels")
+	flag.IntVar(&viewportHeight, "viewport-height", envOrDefaultValue("VIEWPORT_HEIGHT", 1080), "Viewport height in pixels")
 	flag.StringVar(&chromeDevtoolsProtocolURL, "chrome-devtools-protocol-url", envOrDefaultValue("CHROME_DEVTOOLS_PROTOCOL_URL", ""), "Connect to existing browser via Chrome DevTools Protocol URL (e.g., http://localhost:9222)")
 	flag.StringVar(&screenshotDiffFormat, "screenshot-diff-format", envOrDefaultValue("SCREENSHOT_DIFF_FORMAT", "pixel"), "Diff format (pixel or rectangle)")
 	flag.StringVar(&htmlDiffFormat, "html-diff-format", envOrDefaultValue("HTML_DIFF_FORMAT", "line"), "Diff format (line)")
@@ -141,6 +145,12 @@ func main() {
 	}
 	if display := os.Getenv("DISPLAY"); display != "" {
 		config.Headless = false
+	}
+	if viewportWidth > 0 {
+		config.ViewportWidth = viewportWidth
+	}
+	if viewportHeight > 0 {
+		config.ViewportHeight = viewportHeight
 	}
 
 	capturer, err := capture.NewPlaywrightCapturer(ctx, config)
