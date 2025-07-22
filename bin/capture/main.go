@@ -82,6 +82,7 @@ func main() {
 	var delay time.Duration
 	var viewportWidth int
 	var viewportHeight int
+	var userAgent string
 	var chromeDevtoolsProtocolURL string
 	var headers headers
 	flag.StringVar(&directory, "directory", envOrDefaultValue("DIRECTORY", "/tmp"), "Output directory")
@@ -90,6 +91,7 @@ func main() {
 	flag.DurationVar(&delay, "delay", envOrDefaultValue("DELAY", 3*time.Second), "Delay before capturing")
 	flag.IntVar(&viewportWidth, "viewport-width", envOrDefaultValue("VIEWPORT_WIDTH", 1920), "Viewport width in pixels")
 	flag.IntVar(&viewportHeight, "viewport-height", envOrDefaultValue("VIEWPORT_HEIGHT", 1080), "Viewport height in pixels")
+	flag.StringVar(&userAgent, "user-agent", envOrDefaultValue("USER_AGENT", ""), "User-Agent string to use for requests")
 	flag.StringVar(&chromeDevtoolsProtocolURL, "chrome-devtools-protocol-url", envOrDefaultValue("CHROME_DEVTOOLS_PROTOCOL_URL", ""), "Connect to existing browser via Chrome DevTools Protocol URL (e.g., http://localhost:9222)")
 	flag.Var(&headers, "H", "Add HTTP header (can be used multiple times, e.g., -H 'Accept: text/html' -H 'Authorization: Bearer token')")
 
@@ -128,6 +130,9 @@ func main() {
 	}
 	if viewportHeight > 0 {
 		config.ViewportHeight = viewportHeight
+	}
+	if userAgent != "" {
+		config.UserAgent = userAgent
 	}
 
 	capturer, err := capture.NewPlaywrightCapturer(ctx, config)

@@ -23,6 +23,7 @@ type PlaywrightConfig struct {
 
 	Headless                  bool
 	ChromeDevtoolsProtocolURL string
+	UserAgent                 string
 }
 
 func DefaultPlaywrightConfig() PlaywrightConfig {
@@ -92,8 +93,17 @@ func (c *playwrightCapturer) Capture(ctx context.Context, url string, captureOpt
 	}()
 	defer close(done)
 
+	extraHeaders := make(map[string]string)
+	if c.config.UserAgent != "" {
+		extraHeaders["User-Agent"] = c.config.UserAgent
+	}
 	if len(captureOptions.Headers) > 0 {
-		if err := page.SetExtraHTTPHeaders(captureOptions.Headers); err != nil {
+		for key, value := range captureOptions.Headers {
+			extraHeaders[key] = value
+		}
+	}
+	if len(extraHeaders) > 0 {
+		if err := page.SetExtraHTTPHeaders(extraHeaders); err != nil {
 			return nil, fmt.Errorf("failed to set HTTP headers: %w", err)
 		}
 	}
