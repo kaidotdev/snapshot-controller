@@ -158,7 +158,7 @@ func main() {
 		log.Fatalf("failed to initialize capturer: %v", err)
 	}
 
-	captureOptions := capture.CaptureOptions{}
+	captureOptions := capture.NewCaptureOptions()
 	if maskSelectors != "" {
 		captureOptions.MaskSelectors = strings.Split(maskSelectors, ",")
 		for i := range captureOptions.MaskSelectors {
@@ -166,12 +166,19 @@ func main() {
 		}
 	}
 	if len(headers) > 0 {
-		captureOptions.Headers = make(map[string]string)
 		for _, header := range headers {
 			parts := strings.SplitN(header, ":", 2)
 			if len(parts) == 2 {
 				key := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
+				captureOptions.Headers[key] = value
+			}
+		}
+	}
+	if headersEnvironmentVariable := os.Getenv("HEADERS"); headersEnvironmentVariable != "" {
+		var m map[string]string
+		if err := json.Unmarshal([]byte(headersEnvironmentVariable), &m); err == nil {
+			for key, value := range m {
 				captureOptions.Headers[key] = value
 			}
 		}
