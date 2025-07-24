@@ -45,6 +45,9 @@ jobs:
             docker buildx build --target snapshot-worker --output type=docker,name=$GHCR_IMAGE/snapshot-worker:$TAG,push=false ${opt} --cache-to type=local,mode=max,dest=/home/runner/.cache/docker-build .
             docker push $GHCR_IMAGE/snapshot-worker:$TAG
 
+            docker buildx build --target snapshot-diff-server --output type=docker,name=$GHCR_IMAGE/snapshot-diff-server:$TAG,push=false ${opt} --cache-to type=local,mode=max,dest=/home/runner/.cache/docker-build .
+            docker push $GHCR_IMAGE/snapshot-diff-server:$TAG
+
             docker buildx build --output type=docker,name=$GHCR_IMAGE:$TAG,push=false ${opt} --cache-to type=local,mode=max,dest=/home/runner/.cache/docker-build .
             docker push $GHCR_IMAGE:$TAG
           )
